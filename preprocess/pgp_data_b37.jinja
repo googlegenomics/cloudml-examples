@@ -1,0 +1,24 @@
+--
+-- Retrieve all variant calls for Personal Genome Project participants.
+--
+SELECT
+  call.call_set_name AS {{ KEY_COLUMN }},
+  reference_name AS {{ CONTIG_COLUMN }},
+  start AS {{ START_COLUMN }},
+  -- 'end' is needed when alt is symbolic such as <DEL> https://github.com/googlegenomics/bigquery-examples/tree/master/1000genomes/data-stories/understanding-alternate-alleles
+  `end` AS {{ END_COLUMN }},
+  reference_bases AS {{ REF_COLUMN }},
+  alt AS {{ ALT_COLUMN }},
+  alt_offset + 1 AS {{ ALT_NUM_COLUMN }},
+  call.genotype[SAFE_ORDINAL(1)] AS {{ FIRST_ALLELE_COLUMN }},
+  call.genotype[SAFE_ORDINAL(2)] AS {{ SECOND_ALLELE_COLUMN }}
+FROM
+  `google.com:biggene.pgp_20150205.genome_calls` v,
+  v.call call,
+  v.alternate_bases alt WITH OFFSET alt_offset
+WHERE
+  EXISTS (SELECT gt FROM UNNEST(call.genotype) gt WHERE gt = (alt_offset + 1))
+  -- Skip no-calls and non-passing variants.
+  AND NOT EXISTS (SELECT gt FROM UNNEST(call.genotype) gt WHERE gt < 0)
+  AND call.allele1VariantQuality = 'VQHIGH'
+  AND IFNULL(call.allele2VariantQuality = 'VQHIGH', TRUE)

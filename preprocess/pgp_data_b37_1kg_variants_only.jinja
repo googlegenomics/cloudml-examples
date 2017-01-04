@@ -1,0 +1,43 @@
+--
+-- Retrieve variant calls for Personal Genome Project participants, limiting
+-- to only those present in the training data to attempt to minimize batch
+-- effects from the differing sequence platforms and variant calling pipelines.
+--
+SELECT
+  call.call_set_name AS {{ KEY_COLUMN }},
+  v.reference_name AS {{ CONTIG_COLUMN }},
+  v.start AS {{ START_COLUMN }},
+  -- 'end' is needed when alt is symbolic such as <DEL> https://github.com/googlegenomics/bigquery-examples/tree/master/1000genomes/data-stories/understanding-alternate-alleles
+  v.`end` AS {{ END_COLUMN }},
+  v.reference_bases AS {{ REF_COLUMN }},
+  alt AS {{ ALT_COLUMN }},
+  alt_offset + 1 AS {{ ALT_NUM_COLUMN }},
+  call.genotype[SAFE_ORDINAL(1)] AS {{ FIRST_ALLELE_COLUMN }},
+  call.genotype[SAFE_ORDINAL(2)] AS {{ SECOND_ALLELE_COLUMN }}
+FROM
+  `google.com:biggene.pgp_20150205.genome_calls` v,
+  v.call call,
+  v.alternate_bases alt WITH OFFSET alt_offset
+JOIN (
+  SELECT
+    CONCAT('chr', reference_name) AS chrom,
+    start,
+    `end`,
+    reference_bases,
+    alt
+  FROM
+    `genomics-public-data.1000_genomes_phase_3.variants_20150220_release` kgv,
+    kgv.alternate_bases alt
+  ) AS kg
+ON
+  kg.chrom = v.reference_name
+  AND kg.start = v.start
+  AND kg.`end` = v.`end`
+  AND kg.reference_bases = v.reference_bases
+  AND kg.alt = alt
+WHERE
+  EXISTS (SELECT gt FROM UNNEST(call.genotype) gt WHERE gt = (alt_offset + 1))
+  -- Skip no-calls and non-passing variants.
+  AND NOT EXISTS (SELECT gt FROM UNNEST(call.genotype) gt WHERE gt < 0)
+  AND call.allele1VariantQuality = 'VQHIGH'
+  AND IFNULL(call.allele2VariantQuality = 'VQHIGH', TRUE)

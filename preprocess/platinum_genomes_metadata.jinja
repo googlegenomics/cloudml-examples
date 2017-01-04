@@ -1,0 +1,10 @@
+--
+-- Retrieve metadata for Platinum Genomes individuals.
+--
+SELECT
+  catalog_id AS {{ KEY_COLUMN }},
+  description AS {{ POPULATION_COLUMN }},
+  race AS {{ SUPER_POPULATION_COLUMN }},
+  gender AS {{ GENDER_COLUMN }}
+FROM
+  `google.com:biggene.platinum_genomes.sample_info`

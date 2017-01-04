@@ -1,0 +1,21 @@
+--
+-- Retrieve just a few variant calls for all individuals in 1000 Genomes.
+-- This query is useful for local development of the preprocess pipeline.
+--
+SELECT
+  call.call_set_name AS {{ KEY_COLUMN }},
+  reference_name AS {{ CONTIG_COLUMN }},
+  start AS {{ START_COLUMN }},
+  -- 'end' is needed when alt is symbolic such as <DEL> https://github.com/googlegenomics/bigquery-examples/tree/master/1000genomes/data-stories/understanding-alternate-alleles
+  `end` AS {{ END_COLUMN }},
+  reference_bases AS {{ REF_COLUMN }},
+  alt AS {{ ALT_COLUMN }},
+  alt_offset + 1 AS {{ ALT_NUM_COLUMN }},
+  call.genotype[SAFE_ORDINAL(1)] AS {{ FIRST_ALLELE_COLUMN }},
+  call.genotype[SAFE_ORDINAL(2)] AS {{ SECOND_ALLELE_COLUMN }}
+FROM `genomics-public-data.1000_genomes_phase_3.variants_20150220_release` v,
+  v.call call,
+  v.alternate_bases alt WITH OFFSET alt_offset
+WHERE
+  EXISTS (SELECT gt FROM UNNEST(call.genotype) gt WHERE gt = (alt_offset + 1))
+LIMIT 10 -- Just grab enough data for a smoke test.

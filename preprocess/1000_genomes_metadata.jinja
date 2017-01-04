@@ -1,0 +1,10 @@
+--
+-- Retrieve metadata for 1000 Genomes individuals.
+--
+SELECT
+  Sample AS {{ KEY_COLUMN }},
+  Population AS {{ POPULATION_COLUMN }},
+  Super_Population AS {{ SUPER_POPULATION_COLUMN }},
+  Gender AS {{ GENDER_COLUMN }}
+FROM
+  `genomics-public-data.1000_genomes.sample_info`

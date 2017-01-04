@@ -1,0 +1,12 @@
+--
+-- Retrieve metadata for Personal Genome Project participants.
+--
+SELECT
+  Participant AS {{ KEY_COLUMN }},
+  -- This data more closely matches super population, but use
+  -- the same metadata column for both as a best effort.
+  Race_ethnicity AS {{ POPULATION_COLUMN }},
+  Race_ethnicity AS {{ SUPER_POPULATION_COLUMN }},
+  Sex_Gender AS {{ GENDER_COLUMN }}
+FROM
+  `google.com:biggene.pgp.phenotypes`
