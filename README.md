@@ -25,7 +25,7 @@ The [CloudML setup instructions](https://cloud.google.com/ml/docs/how-tos/gettin
         * `PROJECT_ID=<YOUR_PROJECT>`
         * `BUCKET_NAME=<YOUR_BUCKET>` this should be the **regional** bucket you created during CloudML setup.
     *   Run [`start_docker.sh`](./docker/start_docker.sh) from your shell to start the container.
-    *   Run [`setup_docker.sh ${PROJECT_ID}`](./setup_docker.sh) *within the container* to configure it further.
+    *   Run [`setup_docker.sh ${PROJECT_ID}`](./docker/setup_docker.sh) *within the container* to configure it further.
 
 ## Pre-processing using Apache Beam
 
