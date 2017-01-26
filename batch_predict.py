@@ -81,8 +81,6 @@ def dataflow():
       # Specify the version of the ml.sdk_location to use plus the path to the
       # training code on GCS.
       'extra_packages': [ml.sdk_location],
-      'teardown_policy':
-          'TEARDOWN_ALWAYS',
       # THROUGHPUT_BASED is not the default value and might generate many
       # small files depending on the number of workers.
       'autoscaling_algorithm':
