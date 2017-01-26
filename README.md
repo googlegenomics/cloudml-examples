@@ -34,34 +34,34 @@ The [CloudML setup instructions](https://cloud.google.com/ml/docs/how-tos/gettin
     *   Write jinja files containing the queries for your desired data.
     *   Copy the jinja files into `$HOME/dockerVolume`
 *   *From within the Docker container* run pipeline
-   [`preprocess_data.py`](./preprocess/preprocess_data.py) to convert the data from BigQuery
+   [`preprocess_data.py`](./trainer/preprocess_data.py) to convert the data from BigQuery
     to TFRecords in Cloud Storage. For example:
 
 Preprocess training data:
 
 ```bash
-python preprocess_data.py \
+python -m trainer.preprocess_data \
+  --setup_file ./setup.py \
   --output gs://${BUCKET_NAME}/1000-genomes \
   --project ${PROJECT_ID} \
-  --metadata 1000_genomes_metadata.jinja \
-  --data 1000_genomes_phase3_b37.jinja \
-  --requirements_file python_dependencies.txt \
+  --metadata ./preprocess/1000_genomes_metadata.jinja \
+  --data ./preprocess/1000_genomes_phase3_b37.jinja \
   --runner DataflowPipelineRunner \
   --worker_machine_type n1-highmem-8 \
-  --no-hethom-words
+  --no_hethom_words
 ```
 
 Preprocess evaluation data:
 
 ```bash
-python preprocess_data.py \
+python -m trainer.preprocess_data \
+  --setup_file ./setup.py \
   --output gs://${BUCKET_NAME}/pgp \
   --project ${PROJECT_ID} \
-  --metadata pgp_metadata.jinja \
-  --data pgp_data_b37_1kg_variants_only.jinja \
-  --requirements_file python_dependencies.txt \
+  --metadata ./preprocess/pgp_metadata.jinja \
+  --data ./preprocess/pgp_data_b37_1kg_variants_only.jinja \
   --runner DataflowPipelineRunner \
-  --no-hethom-words
+  --no_hethom_words
 ```
 
 ## Training using CloudML
@@ -72,7 +72,7 @@ gcloud beta ml jobs submit training MY_JOB_NAME \
   --config config.yaml \
   --region us-central1 \
   --module-name trainer.variants_inference \
-  --staging-bucket gs://${BUCKET_NAME}/staging \
+  --staging-bucket gs://${BUCKET_NAME} \
   --package-path ./trainer \
   --project ${PROJECT_ID} \
   -- \

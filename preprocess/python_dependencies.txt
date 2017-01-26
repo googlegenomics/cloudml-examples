@@ -1,2 +1,0 @@
-Jinja2==2.8
-pyfarmhash==0.2.2

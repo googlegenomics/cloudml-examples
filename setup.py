@@ -17,7 +17,15 @@
 from setuptools import find_packages
 from setuptools import setup
 
+REQUIRED_PACKAGES = ['Jinja2==2.8', 'pyfarmhash==0.2.2']
+
 setup(
-  name='trainer',
-  version='1.0',
-  packages=find_packages())
+    name='trainer',
+    version='0.1',
+    author='Google',
+    author_email='google-genomics-contact@googlegroups.com',
+    install_requires=REQUIRED_PACKAGES,
+    packages=find_packages(),
+    include_package_data=True,
+    description='Google Cloud Machine Learning genomics example',
+    requires=[])
