@@ -114,14 +114,12 @@ class PreprocessOptions(PipelineOptions):
         '--hethom_words',
         dest='add_hethom',
         action='store_true',
-        help='Add variant heterozygous/homozygous "word". '
-        'Defaults to true.')
+        help='Add variant heterozygous/homozygous "word".')
     parser.add_argument(
         '--no_hethom_words',
         dest='add_hethom',
         action='store_false',
-        help='Do not add variant heterozygous/homozygous "word". '
-        'Defaults to true.')
+        help='Do not add variant heterozygous/homozygous "word".')
     parser.set_defaults(add_hethom=True)
     parser.add_argument(
         '--bin_size',
