@@ -125,7 +125,7 @@ class PreprocessOptions(PipelineOptions):
         '--bin_size',
         type=int,
         help='The number of contiguous base pairs to use for each "bin". '
-        'This parameter enables the placement variant "words" into '
+        'This parameter enables the placement of variant "words" into '
         'smaller genomic region features (as opposed to the default '
         'feature-per-chromosome) ')
 
