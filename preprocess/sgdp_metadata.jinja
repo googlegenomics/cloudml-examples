@@ -1,0 +1,11 @@
+--
+-- Retrieve metadata for the Simons Genome Diversity
+-- Project Dataset.
+--
+SELECT
+  id_from_vcf AS {{ KEY_COLUMN }},
+  population AS {{ POPULATION_COLUMN }},
+  region AS {{ SUPER_POPULATION_COLUMN }},
+  sex AS {{ GENDER_COLUMN }}
+FROM
+  `genomics-public-data.simons_genome_diversity_project.sample_attributes`

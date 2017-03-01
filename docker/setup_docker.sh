@@ -27,30 +27,17 @@
 set -o errexit
 set -o nounset
 
-readonly PROJECT_ID="${1}"
-
-# Needed for subsequent installation of libjpeg-dev in the next step.
-apt-get update
-
-# Install required tools and dependencies per
-# https://cloud.google.com/ml/docs/how-tos/getting-set-up
-curl https://raw.githubusercontent.com/GoogleCloudPlatform/cloudml-samples/master/tools/setup_docker.sh | bash
-
 # The hash algorithm used to convert variants represented
 # as "words" into integers.
+apt-get update
 apt-get install -y build-essential
 pip install pyfarmhash
+
+# Install dataflow.
+pip install --upgrade google-cloud-dataflow==0.5.5
 
 # Needed by Dataflow.
 gcloud auth login
 
 # Needed by CloudML.
 gcloud auth application-default login
-
-# Needed by environment verification.
-gcloud config set project "${PROJECT_ID}"
-
-# Verify your environment per
-# https://cloud.google.com/ml/docs/how-tos/getting-set-up
-curl https://raw.githubusercontent.com/GoogleCloudPlatform/cloudml-samples/master/tools/check_environment.py | python
-
