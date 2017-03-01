@@ -71,10 +71,11 @@ class FeatureEncoder(object):
   })
 
   # Population and Super population labels used for training and evaluation
-  # will always be the ones from 1000 Genomes. If we wish to use another
-  # dataset for training and evaluation, we'll need to provide the mapping
-  # from 1000 Genomes labels to those used for the dataset.
-  SUPER_POPULATIONS = ['AFR', 'AMR', 'EAS', 'EUR', 'SAS']
+  # will always be the ones from 1000 Genomes plus a label for unknown
+  # populations. If we wish to use another dataset for training and
+  # evaluation, we'll need to provide the mapping from 1000 Genomes
+  # labels to those used for the dataset.
+  SUPER_POPULATIONS = ['AFR', 'AMR', 'EAS', 'EUR', 'SAS', 'UNK']
 
   SUPER_POPULATION_MAP = defaultdict(lambda: FeatureEncoder.NA_INTEGER)
   for pop in range(len(SUPER_POPULATIONS)):

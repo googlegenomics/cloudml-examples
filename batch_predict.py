@@ -33,7 +33,7 @@ parser.add_argument(
     help='The project to which the job will be submitted.')
 parser.add_argument(
     '--runner',
-    default='DirectPipelineRunner',
+    default='DirectRunner',
     help='The beam runner to use.')
 parser.add_argument(
     '--model_dir',
@@ -107,7 +107,7 @@ def dataflow():
       region='us-central1',
       data_format='TF_RECORD_GZIP')
 
-  p.run()
+  p.run().wait_until_finish()
 
 
 def main():

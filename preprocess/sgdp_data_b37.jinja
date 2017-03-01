@@ -1,0 +1,26 @@
+--
+-- Retrieve high quality variant calls for the Simons Genome Diversity
+-- Project Dataset.
+--
+SELECT
+  call.call_set_name AS {{ KEY_COLUMN }},
+  reference_name AS {{ CONTIG_COLUMN }},
+  start AS {{ START_COLUMN }},
+  -- 'end' is needed when alt is symbolic such as <DEL>
+  `end` AS {{ END_COLUMN }},
+  reference_bases AS {{ REF_COLUMN }},
+  alt AS {{ ALT_COLUMN }},
+  alt_offset + 1 AS {{ ALT_NUM_COLUMN }},
+  call.genotype[SAFE_ORDINAL(1)] AS {{ FIRST_ALLELE_COLUMN }},
+  call.genotype[SAFE_ORDINAL(2)] AS {{ SECOND_ALLELE_COLUMN }}
+FROM `genomics-public-data.simons_genome_diversity_project.single_sample_genome_calls` v,
+  v.call call,
+  v.alternate_bases alt WITH OFFSET alt_offset
+WHERE
+  -- Ensure that at least one of the genotypes corresponds to this alternate.
+  EXISTS (SELECT gt FROM UNNEST(call.genotype) gt WHERE gt = (alt_offset + 1))
+  -- VCF header says:
+  -- "filter level in range 0-9 or no value (non-integer: N,?) with zero
+  -- being least reliable; to threshold at FL=n, use all levels n-9"
+  -- Note that there are two samples with FL="" for all variants.
+  AND call.FL IN ("", "1","2","3","4","5","6","7","8","9")

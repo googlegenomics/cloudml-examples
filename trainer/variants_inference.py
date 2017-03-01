@@ -47,7 +47,7 @@ flags.DEFINE_integer(
     "The total embedding dimension is obtained by multiplying this number "
     "by the number of feature columns.")
 flags.DEFINE_integer(
-    "batch_size", 50, "The size of the train and test batches.")
+    "batch_size", 10, "The size of the train and test batches.")
 flags.DEFINE_integer(
     "feature_queue_capacity", 5, "The size of the feature queue.")
 flags.DEFINE_string(
