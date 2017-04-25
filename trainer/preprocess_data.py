@@ -17,12 +17,12 @@
 r"""Pipeline to convert variant data from BigQuery to TensorFlow Example protos.
 
 USAGE:
-  python preprocess_data.py \
-    --requirements_file python_dependencies.txt \
+  python -m trainer.preprocess_data \
+    --setup_file ./setup.py \
     --output gs://MY-BUCKET/variant-preprocesss \
     --project MY-PROJECT \
-    --metadata 1000_genomes_metadata.jinja \
-    --data 1000_genomes_phase3_b37_limit10.jinja
+    --metadata preprocess/1000_genomes_metadata.jinja \
+    --input preprocess/1000_genomes_phase3_b37_limit10.jinja
 """
 
 import datetime
@@ -30,8 +30,8 @@ import logging
 import os
 
 import apache_beam as beam
-from apache_beam.io import fileio
 from apache_beam.io import tfrecordio
+from apache_beam.io.fileio import CompressionTypes
 from apache_beam.utils.pipeline_options import GoogleCloudOptions
 from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.utils.pipeline_options import SetupOptions
@@ -189,7 +189,7 @@ def run(argv=None):
              lambda example: example.SerializeToString())
          | 'WriteExamples' >> tfrecordio.WriteToTFRecord(
              file_path_prefix=os.path.join(output_dir, 'examples'),
-             compression_type=fileio.CompressionTypes.GZIP,
+             compression_type=CompressionTypes.GZIP,
              file_name_suffix='.tfrecord.gz'))
 
 

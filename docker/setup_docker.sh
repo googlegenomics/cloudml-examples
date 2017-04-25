@@ -34,7 +34,7 @@ apt-get install -y build-essential
 pip install pyfarmhash
 
 # Install dataflow.
-pip install --upgrade google-cloud-dataflow==0.5.5
+pip install --upgrade google-cloud-dataflow==0.6.0
 
 # Needed by Dataflow.
 gcloud auth login

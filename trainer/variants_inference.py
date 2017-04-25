@@ -14,19 +14,22 @@
 """Tensorflow implementation of variants inference."""
 
 import functools
-import json
 import os
 
 
 import tensorflow as tf
 
 from tensorflow.contrib.learn.python.learn import learn_runner
-from tensorflow.contrib.session_bundle import manifest_pb2
+from tensorflow.contrib.learn.python.learn.estimators import model_fn
+from tensorflow.contrib.learn.python.learn.metric_spec import MetricSpec
+from tensorflow.contrib.learn.python.learn.utils import input_fn_utils
+from tensorflow.contrib.learn.python.learn.utils import saved_model_export_utils
 from tensorflow.python.lib.io.tf_record import TFRecordCompressionType
 
 
-EXAMPLE_KEY = "input_feature"
-CONCAT_EMBEDDINGS_KEY = "concat_embeddings"
+DEFAULT_OUTPUT_ALTERNATIVE = "output_alt"
+PREDICTION_KEY = "key"
+PREDICTION_EXAMPLES = "examples"
 
 flags = tf.flags
 logging = tf.logging
@@ -215,9 +218,12 @@ def _predict_input_fn():
   examples = tf.placeholder(tf.string, shape=(None,), name="examples")
 
   features = tf.parse_example(examples, feature_spec)
-  # Pass the input tensor so it can be used for export.
-  features[EXAMPLE_KEY] = examples
-  return features, None
+  features[PREDICTION_KEY] = features[FLAGS.id_field]
+
+  inputs = {PREDICTION_EXAMPLES: examples}
+
+  return input_fn_utils.InputFnOps(
+      features=features, labels=None, default_inputs=inputs)
 
 
 def _build_model_fn():
@@ -242,8 +248,6 @@ def _build_model_fn():
         columns_to_tensors=features,
         feature_columns=_get_feature_columns(include_target_column=False))
 
-    tf.add_to_collection(CONCAT_EMBEDDINGS_KEY, concat_embeddings)
-
     # Add one hidden layer.
     hidden_layer_0 = tf.contrib.layers.relu(
         concat_embeddings, FLAGS.hidden_units)
@@ -253,12 +257,23 @@ def _build_model_fn():
 
     predictions = tf.contrib.layers.softmax(logits)
     if mode == tf.contrib.learn.ModeKeys.INFER:
-      return predictions, None, None
+      predictions = {
+          tf.contrib.learn.PredictionKey.PROBABILITIES: predictions,
+          PREDICTION_KEY: features[PREDICTION_KEY]
+      }
+      output_alternatives = {
+          DEFAULT_OUTPUT_ALTERNATIVE: (tf.contrib.learn.ProblemType.UNSPECIFIED,
+                                       predictions)
+      }
+      return model_fn.ModelFnOps(
+          mode=mode,
+          predictions=predictions,
+          output_alternatives=output_alternatives)
 
     target_one_hot = tf.one_hot(labels, FLAGS.num_classes)
     target_one_hot = tf.reduce_sum(
         input_tensor=target_one_hot, reduction_indices=[1])
-    loss = tf.contrib.losses.softmax_cross_entropy(logits, target_one_hot)
+    loss = tf.losses.softmax_cross_entropy(target_one_hot, logits)
     if mode == tf.contrib.learn.ModeKeys.EVAL:
       return predictions, loss, None
 
@@ -268,7 +283,8 @@ def _build_model_fn():
         global_step=tf.contrib.framework.get_global_step(),
         learning_rate=FLAGS.learning_rate,
         optimizer=opt)
-    return predictions, loss, train_op
+    return model_fn.ModelFnOps(
+        mode=mode, predictions=predictions, loss=loss, train_op=train_op)
 
   return _model_fn
 
@@ -284,61 +300,25 @@ def _create_evaluation_metrics():
   """
   eval_metrics = {}
   for k in [1]:
-    eval_metrics["precision_at_%d" % k] = functools.partial(
-        tf.contrib.metrics.streaming_sparse_precision_at_k, k=k)
-    eval_metrics["recall_at_%d" % k] = functools.partial(
-        tf.contrib.metrics.streaming_sparse_recall_at_k, k=k)
+    eval_metrics["precision_at_%d" % k] = MetricSpec(
+        metric_fn=functools.partial(
+            tf.contrib.metrics.streaming_sparse_precision_at_k, k=k))
+    eval_metrics["recall_at_%d" % k] = MetricSpec(metric_fn=functools.partial(
+        tf.contrib.metrics.streaming_sparse_recall_at_k, k=k))
 
   for class_id, class_label in _get_eval_labels():
     k = 1
-    eval_metrics["precision_at_%d_%s" % (k, class_label)] = functools.partial(
-        tf.contrib.metrics.streaming_sparse_precision_at_k,
-        k=k, class_id=class_id)
-    eval_metrics["recall_at_%d_%s" % (k, class_label)] = functools.partial(
-        tf.contrib.metrics.streaming_sparse_recall_at_k,
-        k=k, class_id=class_id)
+    eval_metrics["precision_at_%d_%s" % (k, class_label)] = MetricSpec(
+        metric_fn=functools.partial(
+            tf.contrib.metrics.streaming_sparse_precision_at_k,
+            k=k,
+            class_id=class_id))
+    eval_metrics["recall_at_%d_%s" % (k, class_label)] = MetricSpec(
+        metric_fn=functools.partial(
+            tf.contrib.metrics.streaming_sparse_recall_at_k,
+            k=k,
+            class_id=class_id))
   return eval_metrics
-
-
-def _signature_fn(examples, features, predictions):
-  """Create a classification signature function and add to collections."""
-  # Mark the inputs.
-  inputs = {"examples": examples.name}
-  tf.add_to_collection("inputs", json.dumps(inputs))
-
-  concat_embeddings = tf.get_collection(CONCAT_EMBEDDINGS_KEY)[0]
-  outputs = {"score": predictions.name,
-             "key": features[FLAGS.id_field].name,
-             "target": features[FLAGS.target_field + "_string"].name,
-             "embeddings": concat_embeddings.name}
-  tf.add_to_collection("outputs", json.dumps(outputs))
-
-  output_signature = manifest_pb2.Signature()
-  for name, tensor_name in outputs.iteritems():
-    output_signature.generic_signature.map[name].tensor_name = tensor_name
-
-  input_signature = manifest_pb2.Signature()
-  for name, tensor_name in inputs.iteritems():
-    input_signature.generic_signature.map[name].tensor_name = tensor_name
-
-  # Create a classification signature for serving prediction.
-  signature = manifest_pb2.Signature()
-  signature.classification_signature.input.tensor_name = examples.name
-  signature.classification_signature.scores.tensor_name = predictions.name
-
-  # Returns a tuple of None default signature and a dictionary of named
-  # signatures with inputs and outputs.
-  return signature, {"inputs": input_signature, "outputs": output_signature}
-
-
-def _get_export_monitor(output_dir):
-  """Create an export monitor."""
-  return tf.contrib.learn.monitors.ExportMonitor(
-      input_fn=_predict_input_fn,
-      input_feature_key=EXAMPLE_KEY,
-      every_n_steps=2000,
-      export_dir=os.path.join(output_dir, "export"),
-      signature_fn=_signature_fn)
 
 
 def _def_experiment(
@@ -378,16 +358,20 @@ def _def_experiment(
         batch_size=batch_size,
         mode=tf.contrib.learn.ModeKeys.EVAL)
 
-    export_monitor = _get_export_monitor(output_dir)
     return tf.contrib.learn.Experiment(
         estimator=estimator,
         train_input_fn=train_input_fn,
         train_steps=FLAGS.num_train_steps,
-        train_monitors=[export_monitor],
         eval_input_fn=eval_input_fn,
         eval_steps=FLAGS.num_eval_steps,
         eval_metrics=_create_evaluation_metrics(),
-        min_eval_frequency=100)
+        min_eval_frequency=100,
+        export_strategies=[
+            saved_model_export_utils.make_export_strategy(
+                _predict_input_fn,
+                exports_to_keep=5,
+                default_output_alternative_key=DEFAULT_OUTPUT_ALTERNATIVE)
+        ])
 
   return _experiment_fn
 

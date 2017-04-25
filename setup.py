@@ -17,7 +17,7 @@
 from setuptools import find_packages
 from setuptools import setup
 
-REQUIRED_PACKAGES = ['Jinja2==2.8', 'pyfarmhash==0.2.2']
+REQUIRED_PACKAGES = ['Jinja2==2.8', 'pyfarmhash==0.2.2', 'tensorflow==1.1.0']
 
 setup(
     name='trainer',

@@ -68,7 +68,7 @@ python -m trainer.preprocess_data \
 
 ```bash
 EXAMPLES_SUBDIR=<the date-time subdirectory created during the training data preprocess step>
-gcloud beta ml jobs submit training MY_JOB_NAME \
+gcloud ml-engine jobs submit training MY_JOB_NAME \
   --config config.yaml \
   --region us-central1 \
   --module-name trainer.variants_inference \
@@ -98,33 +98,19 @@ tensorboard --port=8080 \
 
 *Tip: When running all of these commands from [Google Cloud Shell](https://cloud.google.com/shell/docs/), the [web preview](https://cloud.google.com/shell/docs/using-web-preview) feature can be used to view the tensorboard user interface.*
 
-## Batch predict using Apache Beam
-
-*From within the Docker container*, run pipeline `batch_predict.py`.
-
-Specify the model_dir if you need the model to be deployed.
+## Batch predict
 
 ```bash
 EXAMPLES_SUBDIR=<the date-time subdirectory created during the evaluation data preprocess step>
-EXPORT_SUBDIR=<the export subdirectory created during model training>
-python batch_predict.py \
-  --model_dir gs://${BUCKET_NAME}/models/1000-genomes-super-population/export/${EXPORT_SUBDIR}/ \
-  --deploy_model_name MY_MODEL_NAME \
-  --deploy_model_version MY_MODEL_VERSION \
-  --input gs://${BUCKET_NAME}/sgdp/${EXAMPLES_SUBDIR}/examples* \
-  --output gs://${BUCKET_NAME}/sgdp/predictions/super-population/ \
-  --project ${PROJECT_ID} \
-  --runner DataflowRunner
+EXPORT_SUBDIR=<model subdirectory underneath 'export/Servo/'>
+gcloud --project ${PROJECT_ID} ml-engine jobs submit \
+    prediction ${JOB_NAME}_predict \
+    --model-dir \
+        gs://${BUCKET_NAME}/models/${JOB_NAME}/export/Servo/${EXPORT_SUBDIR} \
+    --input-paths gs://${BUCKET_NAME}/sgdp/${EXAMPLES_SUBDIR}/examples* \
+    --output-path gs://${BUCKET_NAME}/predictions/${JOB_NAME} \
+    --region us-central1 \
+    --data-format TF_RECORD_GZIP
 ```
 
-Otherwise just use the name and version of the deployed model.
-
-```bash
-python batch_predict.py \
-  --input gs://${BUCKET_NAME}/sgdp/${EXAMPLES_SUBDIR}/examples* \
-  --output gs://${BUCKET_NAME}/sgdp/predictions/super-population/ \
-  --deploy_model_name MY_MODEL_NAME \
-  --deploy_model_version MY_MODEL_VERSION \
-  --project ${PROJECT_ID} \
-  --runner DataflowRunner
-```
+If prediction yields an error regarding the size of the saved model, request more quota for your project.
