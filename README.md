@@ -5,37 +5,40 @@ This is not an official Google product.
 cloudml-examples
 ================
 
-This repository contains an example of applying machine learning to genomic data using Google Cloud ML. The particular learning problem demonstrated is an ancestry inference. Identification of genetic ancestry is important for adjusting putative genetic associations with traits that may be driven largely through population structure. It is also important for assessing the accuracy of self-reported ancestry.
+This repository contains an example of applying machine learning to genomic data using [Cloud Machine Learning Engine (Cloud ML Engine)](https://cloud.google.com/ml-engine/). The learning problem demonstrated is an ancestry inference. Identification of genetic ancestry is important for adjusting putative genetic associations with traits that may be driven largely through population structure. It is also important for assessing the accuracy of self-reported ancestry.
 
-The instructions below train a model to predict 1000 Genomes super population labels.  The training data are the [1000 Genomes](http://googlegenomics.readthedocs.io/en/latest/use_cases/discover_public_data/1000_genomes.html) phase 3 variants stored in BigQuery. The evaluation data are the [Simons Genome Diversity Project](http://googlegenomics.readthedocs.io/en/latest/use_cases/discover_public_data/simons_foundation.html) variants stored in BigQuery.  The training data is pre-processed using pipelines written with [Apache Beam](https://beam.apache.org/) and executed on [Google Cloud Dataflow](https://cloud.google.com/dataflow/docs/). Prediction also uses Beam and Dataflow and the results can be written to the local file system or Cloud Storage.
+The instructions below train a model to predict 1000 Genomes super population labels. The training data are the [1000 Genomes](http://googlegenomics.readthedocs.io/en/latest/use_cases/discover_public_data/1000_genomes.html) phase 3 variants stored in BigQuery. The validation data are the [Simons Genome Diversity Project](http://googlegenomics.readthedocs.io/en/latest/use_cases/discover_public_data/simons_foundation.html) variants stored in BigQuery. The training data is pre-processed using pipelines written with [Apache Beam](https://beam.apache.org/) and executed on [Google Cloud Dataflow](https://cloud.google.com/dataflow/docs/).
 
 This approach uses continuous vectors of genomic variants for analysis and inference on Machine Learning pipelines. For related work, see also [Diet Networks: Thin Parameters for Fat Genomics](https://openreview.net/pdf?id=Sk-oDY9ge) Romero et. al.
 
 ## Getting Started
 
-The [CloudML setup instructions](https://cloud.google.com/ml/docs/how-tos/getting-set-up) list a few ways to get setup. We recommend the Docker setup option and have included some scripts to make that a bit easier.
+1. [Set up the Dataflow SDK for Python](https://cloud.google.com/dataflow/docs/quickstarts/quickstart-python)
 
-*   One time setup:
-    *   [Set up CloudML](https://cloud.google.com/ml/docs/how-tos/getting-set-up) by following the Docker Container instructions.
-    *   Create a directory which will be mounted inside of your Docker container: `mkdir $HOME/dockerVolume`
-    *   Copy this tree of code into `$HOME/dockerVolume`
+2. [Set up Cloud ML Engine](https://cloud.google.com/ml-engine/docs/quickstarts/command-line)
 
-*   To update your environment to the latest code:
-    *   Run [`start_docker.sh`](./docker/start_docker.sh) from your shell to start the container.
-    *   Run [`setup_docker.sh`](./docker/setup_docker.sh) *within the container* to configure it further.
-    *   Set some environment variants to make copy/pasting commands a bit easier.
-        * `PROJECT_ID=<YOUR_PROJECT>`
-        * `BUCKET_NAME=<YOUR_BUCKET>` this should be the **regional** bucket you created during CloudML setup.
+3. This code depends on a few additional python packages. If you are using
+virtualenv, the following commands will create a virtualenv, activate it, and
+install those dependencies.
+
+  ```bash
+  virtualenv --system-site-packages ~/virtualEnvs/tensorflow
+  source ~/virtualEnvs/tensorflow/bin/activate
+  pip install --upgrade pip jinja2 pyfarmhash google-cloud-dataflow tensorflow
+  ```
+4. Set some environment variables to make copy/pasting commands a bit easier.
+
+  * `PROJECT_ID=<YOUR_PROJECT>`
+  * `BUCKET_NAME=<YOUR_BUCKET>` this should be the **regional** bucket you
+  created during Cloud ML Engine setup.
 
 ## Pre-processing using Apache Beam
 
-*   See if a query for the data you want to work with is already available in the [`preprocess`](./preprocess) directory.  If not:
+*   See if a query for the data you want to work with is already available in the [`preprocess`](./preprocess) directory. If not:
     *   See also [Select Genomic Data to work with](http://googlegenomics.readthedocs.io/en/latest/sections/select_genomic_data.html) for other public data and how to load your own data.
     *   Write jinja files containing the queries for your desired data.
-    *   Copy the jinja files into `$HOME/dockerVolume`
-*   *From within the Docker container* run pipeline
-   [`preprocess_data.py`](./trainer/preprocess_data.py) to convert the data from BigQuery
-    to TFRecords in Cloud Storage. For example:
+*   Run a [`preprocess_data.py`](./trainer/preprocess_data.py) pipeline to convert
+the data from BigQuery to TFRecords in Cloud Storage. For example:
 
 Preprocess training data:
 
@@ -51,7 +54,7 @@ python -m trainer.preprocess_data \
   --no_hethom_words
 ```
 
-Preprocess evaluation data:
+Preprocess validation data:
 
 ```bash
 python -m trainer.preprocess_data \
@@ -68,13 +71,14 @@ python -m trainer.preprocess_data \
 
 ```bash
 EXAMPLES_SUBDIR=<the date-time subdirectory created during the training data preprocess step>
-gcloud ml-engine jobs submit training MY_JOB_NAME \
-  --config config.yaml \
-  --region us-central1 \
-  --module-name trainer.variants_inference \
-  --staging-bucket gs://${BUCKET_NAME} \
-  --package-path ./trainer \
+JOB_NAME=super_population_1000_genomes
+gcloud ml-engine jobs submit training ${JOB_NAME} \
   --project ${PROJECT_ID} \
+  --region us-central1 \
+  --config config.yaml \
+  --package-path ./trainer \
+  --module-name trainer.variants_inference \
+  --job-dir gs://${BUCKET_NAME}/models/${JOB_NAME} \
   -- \
   --input_dir gs://${BUCKET_NAME}/1000-genomes/${EXAMPLES_SUBDIR}/ \
   --sparse_features all_not_x_y \
@@ -82,26 +86,36 @@ gcloud ml-engine jobs submit training MY_JOB_NAME \
   --eval_labels="AFR,AMR,EAS,EUR,SAS" \
   --target_field super_population \
   --hidden_units 20 \
-  --output_path gs://${BUCKET_NAME}/models/1000-genomes-super-population/ \
-  --num_train_steps 50000 \
-  --num_buckets 50000
+  --output_path gs://${BUCKET_NAME}/models/${JOB_NAME}/ \
+  --num_buckets 50000 \
+  --num_train_steps 10000
 ```
 
 If training results in an out of memory exception, add argument `--num_eval_steps 1` to the command line.
 
-To inspect the behavior of training, launch TensorBoard and point it at the summary logs produced during training — both during and after execution.  *From within the Docker container*, run the following command:
+To inspect the behavior of training, launch TensorBoard and point it at the summary logs produced during training — both during and after execution.
 
 ```bash
 tensorboard --port=8080 \
-    --logdir gs://${BUCKET_NAME}/models/1000-genomes-super-population/
+    --logdir gs://${BUCKET_NAME}/models/${JOB_NAME}/
 ```
 
-*Tip: When running all of these commands from [Google Cloud Shell](https://cloud.google.com/shell/docs/), the [web preview](https://cloud.google.com/shell/docs/using-web-preview) feature can be used to view the tensorboard user interface.*
+*Tip: When running all of these commands from [Google Cloud Shell](https://cloud.google.com/shell/docs/), the [web preview](https://cloud.google.com/shell/docs/using-web-preview) feature can be used to view the TensorBoard user interface.*
+
+The model generally converges sooner than 10,000 steps and you'll see this via TensorBoard. Training can be stopped early to avoid overfitting. To obtain the "saved model" needed for prediction, start training again from the exact same output directory (it will pick up where it left off) and have it run for a few more steps than it has already completed.
+
+For example, if the job was cancelled after completing step 5,632, the following command will trigger a save model operation.
+
+``` bash
+gcloud ml-engine jobs submit training ${JOB_NAME}_save_model \
+  ... <all other flags same as above>
+  --num_train_steps 5700
+```
 
 ## Batch predict
 
 ```bash
-EXAMPLES_SUBDIR=<the date-time subdirectory created during the evaluation data preprocess step>
+EXAMPLES_SUBDIR=<the date-time subdirectory created during the validation data preprocess step>
 EXPORT_SUBDIR=<model subdirectory underneath 'export/Servo/'>
 gcloud --project ${PROJECT_ID} ml-engine jobs submit \
     prediction ${JOB_NAME}_predict \
