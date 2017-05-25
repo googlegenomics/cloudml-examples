@@ -16,13 +16,16 @@
 
 r"""Pipeline to convert variant data from BigQuery to TensorFlow Example protos.
 
+For any samples without corresponding metadata, values indicating
+NA will be used instead for the metadata.
+
 USAGE:
   python -m trainer.preprocess_data \
     --setup_file ./setup.py \
-    --output gs://MY-BUCKET/variant-preprocesss \
-    --project MY-PROJECT \
+    --project ${PROJECT_ID} \
     --metadata preprocess/1000_genomes_metadata.jinja \
-    --input preprocess/1000_genomes_phase3_b37_limit10.jinja
+    --input preprocess/1000_genomes_phase3_b37_limit10.jinja \
+    --output gs://${BUCKET_NAME}/1000-genomes
 """
 
 import datetime
@@ -38,35 +41,36 @@ from apache_beam.utils.pipeline_options import SetupOptions
 from apache_beam.utils.pipeline_options import WorkerOptions
 from jinja2 import Template
 
-from trainer.feature_encoder import BinnedFeatureEncoder
-from trainer.feature_encoder import FeatureEncoder
+import trainer.ancestry_metadata_encoder as metadata_encoder
+import trainer.feature_encoder as encoder
 import trainer.util as util
+import trainer.variant_encoder as variant_encoder
 
 
 # Jinja template replacements to decouple column names from the source
 # tables from the dictionart keys used in this pipeline.
 
 METADATA_QUERY_REPLACEMENTS = {
-    'KEY_COLUMN': FeatureEncoder.KEY_COLUMN,
-    'POPULATION_COLUMN': FeatureEncoder.POPULATION_COLUMN,
-    'SUPER_POPULATION_COLUMN': FeatureEncoder.SUPER_POPULATION_COLUMN,
-    'GENDER_COLUMN': FeatureEncoder.GENDER_COLUMN,
+    'KEY_COLUMN': encoder.KEY_COLUMN,
+    'POPULATION_COLUMN': metadata_encoder.POPULATION_COLUMN,
+    'SUPER_POPULATION_COLUMN': metadata_encoder.SUPER_POPULATION_COLUMN,
+    'GENDER_COLUMN': metadata_encoder.GENDER_COLUMN,
 }
 
 DATA_QUERY_REPLACEMENTS = {
-    'KEY_COLUMN': FeatureEncoder.KEY_COLUMN,
-    'CONTIG_COLUMN': FeatureEncoder.CONTIG_COLUMN,
-    'START_COLUMN': FeatureEncoder.START_COLUMN,
-    'END_COLUMN': FeatureEncoder.END_COLUMN,
-    'REF_COLUMN': FeatureEncoder.REF_COLUMN,
-    'ALT_COLUMN': FeatureEncoder.ALT_COLUMN,
-    'ALT_NUM_COLUMN': FeatureEncoder.ALT_NUM_COLUMN,
-    'FIRST_ALLELE_COLUMN': FeatureEncoder.FIRST_ALLELE_COLUMN,
-    'SECOND_ALLELE_COLUMN': FeatureEncoder.SECOND_ALLELE_COLUMN
+    'KEY_COLUMN': encoder.KEY_COLUMN,
+    'CONTIG_COLUMN': encoder.CONTIG_COLUMN,
+    'START_COLUMN': encoder.START_COLUMN,
+    'END_COLUMN': encoder.END_COLUMN,
+    'REF_COLUMN': encoder.REF_COLUMN,
+    'ALT_COLUMN': encoder.ALT_COLUMN,
+    'ALT_NUM_COLUMN': encoder.ALT_NUM_COLUMN,
+    'FIRST_ALLELE_COLUMN': encoder.FIRST_ALLELE_COLUMN,
+    'SECOND_ALLELE_COLUMN': encoder.SECOND_ALLELE_COLUMN
 }
 
 
-def variants_to_examples(input_data, samples_metadata, feature_encoder):
+def variants_to_examples(input_data, samples_metadata, sample_to_example_fn):
   """Converts variants to TensorFlow Example protos.
 
   Args:
@@ -74,21 +78,22 @@ def variants_to_examples(input_data, samples_metadata, feature_encoder):
       DATA_QUERY_REPLACEMENTS
     samples_metadata: metadata dictionary objects with keys from
       METADATA_QUERY_REPLACEMENTS
-    feature_encoder: the feature encoder instance to use to convert the source
-      data into TensorFlow Example protos.
+    sample_to_example_fn: the feature encoder strategy to use to
+      convert the source data into TensorFlow Example protos.
 
   Returns:
     TensorFlow Example protos.
   """
   variant_kvs = input_data | 'BucketVariants' >> beam.Map(
-      lambda row: (row[FeatureEncoder.KEY_COLUMN], row))
+      lambda row: (row[encoder.KEY_COLUMN], row))
 
   sample_variant_kvs = variant_kvs | 'GroupBySample' >> beam.GroupByKey()
 
   examples = (
       sample_variant_kvs
       | 'SamplesToExamples' >> beam.Map(
-          lambda (key, vals), samples_metadata: feature_encoder.sample_variants_to_example(key, vals, samples_metadata),
+          lambda (key, vals), samples_metadata: sample_to_example_fn(
+              key, vals, samples_metadata),
           beam.pvalue.AsSingleton(samples_metadata)))
 
   return examples
@@ -159,29 +164,37 @@ def run(argv=None):
           DATA_QUERY_REPLACEMENTS))
   logging.info('data query : %s', data_query)
 
+  # Assemble the strategies to be used to convert the raw data to features.
+  variant_to_feature_name_fn = variant_encoder.variant_to_contig_feature_name
+  if preprocess_options.bin_size is not None:
+    variant_to_feature_name_fn = variant_encoder.build_variant_to_binned_feature_name(
+        bin_size=preprocess_options.bin_size)
+
+  variants_to_features_fn = variant_encoder.build_variants_to_features(
+      variant_to_feature_name_fn=variant_to_feature_name_fn,
+      variant_to_words_fn=variant_encoder.build_variant_to_words(
+          add_hethom=preprocess_options.add_hethom))
+
+  sample_to_example_fn = encoder.build_sample_to_example(
+      metadata_to_features_fn=metadata_encoder.metadata_to_ancestry_features,
+      variants_to_features_fn=variants_to_features_fn)
+
   with beam.Pipeline(options=pipeline_options) as p:
     # Gather our sample metadata into a python dictionary.
     samples_metadata = (
         p
         | 'ReadSampleMetadata' >> beam.io.Read(
-            beam.io.BigQuerySource(
-                query=metadata_query, use_standard_sql=True))
+            beam.io.BigQuerySource(query=metadata_query, use_standard_sql=True))
         | 'TableToDictionary' >> beam.CombineGlobally(
-            util.TableToDictCombineFn(key_column=FeatureEncoder.KEY_COLUMN)))
+            util.TableToDictCombineFn(key_column=encoder.KEY_COLUMN)))
 
     # Read the table rows into a PCollection.
     rows = p | 'ReadVariants' >> beam.io.Read(
         beam.io.BigQuerySource(query=data_query, use_standard_sql=True))
 
-    feature_encoder = FeatureEncoder(add_hethom=preprocess_options.add_hethom)
-    if preprocess_options.bin_size is not None:
-      feature_encoder = BinnedFeatureEncoder(
-          add_hethom=preprocess_options.add_hethom,
-          bin_size=preprocess_options.bin_size)
-
     # Convert the data into TensorFlow Example Protocol Buffers.
     examples = variants_to_examples(
-        rows, samples_metadata, feature_encoder=feature_encoder)
+        rows, samples_metadata, sample_to_example_fn=sample_to_example_fn)
 
     # Write the serialized compressed protocol buffers to Cloud Storage.
     _ = (examples

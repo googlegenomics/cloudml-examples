@@ -1,0 +1,20 @@
+--
+-- Retrieve metadata for a subset of individuals from the Simons Genome
+-- Diversity Project Dataset, remapping labels to be those from
+-- the 1000 Genomes study.
+--
+SELECT
+  id_from_vcf AS {{ KEY_COLUMN }},
+  population AS {{ POPULATION_COLUMN }},
+  CASE region
+    WHEN "Africa" THEN "AFR"
+    WHEN "America" THEN "AMR"
+    WHEN "EastAsia" THEN "EAS"
+    WHEN "SouthAsia" THEN "SAS"
+    WHEN "WestEurasia" THEN "EUR"
+    END AS {{ SUPER_POPULATION_COLUMN }},
+  sex AS {{ GENDER_COLUMN }}
+FROM
+  `genomics-public-data.simons_genome_diversity_project.sample_attributes`
+WHERE
+  region IN ('WestEurasia', 'Africa', 'America', 'EastAsia', 'SouthAsia')

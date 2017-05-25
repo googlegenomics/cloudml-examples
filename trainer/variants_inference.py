@@ -36,7 +36,7 @@ logging = tf.logging
 metrics_lib = tf.contrib.metrics
 
 flags.DEFINE_float(
-    "learning_rate", 0.001, "Learning rate.")
+    "learning_rate", 0.01, "Learning rate.")
 flags.DEFINE_float(
     "momentum", 0.9, "Momentum.")
 flags.DEFINE_integer(
