@@ -66,6 +66,28 @@ def variant_to_contig_feature_name(variant):
   return normalize_contig_name(variant)
 
 
+def sample_has_variant(variant):
+  """Check whether the sample has this particular variant.
+
+  Since the input data was FLATTENED on alternate_bases, we do this by
+  checking whether either allele value corresponds to the alternate
+  currently under consideration. Note that the values of the first
+  allele and the second allele are genotypes --> which are essentially
+  an index into the alternate_bases repeated field.  See
+  http://vcftools.sourceforge.net/VCF-poster.pdf for more detail.
+
+  Args:
+    variant: a variant call
+
+  Returns:
+    Whether or not the sample has this particular variant allele.
+  """
+  alt_num = int(variant[encoder.ALT_NUM_COLUMN])
+  return (variant[encoder.FIRST_ALLELE_COLUMN] == alt_num or
+          (encoder.SECOND_ALLELE_COLUMN in variant and
+           variant[encoder.SECOND_ALLELE_COLUMN] == alt_num))
+
+
 def build_variant_to_binned_feature_name(bin_size=1000000):
   """Builder for strategy for separate features for contiguous genomic regions.
 
@@ -126,17 +148,8 @@ def build_variant_to_words(add_hethom=True):
     Returns:
       One or more "words" that represent the variant call.
     """
-    # Only add words only if the sample has a variant at this site. Since the
-    # input data was FLATTENED on alternate_bases, we do this by checking
-    # whether either allele value corresponds to the alternate currently
-    # under consideration. Note that the values of the first allele and
-    # the second allele are genotypes --> which are essentially an index
-    # into the alternate_bases repeated field.
-    # See http://vcftools.sourceforge.net/VCF-poster.pdf for more detail.
-    alt_num = int(variant[encoder.ALT_NUM_COLUMN])
-    if ((variant[encoder.FIRST_ALLELE_COLUMN] != alt_num) and
-        ((encoder.SECOND_ALLELE_COLUMN not in variant) or
-         (variant[encoder.SECOND_ALLELE_COLUMN] != alt_num))):
+    # Only add words only if the sample has a variant at this site.
+    if not sample_has_variant(variant):
       return []
 
     # Normalize reference names in the words.

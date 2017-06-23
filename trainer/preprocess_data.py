@@ -25,7 +25,7 @@ USAGE:
     --project ${PROJECT_ID} \
     --metadata preprocess/1000_genomes_metadata.jinja \
     --input preprocess/1000_genomes_phase3_b37_limit10.jinja \
-    --output gs://${BUCKET_NAME}/1000-genomes
+    --output ${BUCKET}/1000-genomes
 """
 
 import datetime
@@ -34,11 +34,11 @@ import os
 
 import apache_beam as beam
 from apache_beam.io import tfrecordio
-from apache_beam.io.fileio import CompressionTypes
-from apache_beam.utils.pipeline_options import GoogleCloudOptions
-from apache_beam.utils.pipeline_options import PipelineOptions
-from apache_beam.utils.pipeline_options import SetupOptions
-from apache_beam.utils.pipeline_options import WorkerOptions
+from apache_beam.io.filesystem import CompressionTypes
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import WorkerOptions
 from jinja2 import Template
 
 import trainer.ancestry_metadata_encoder as metadata_encoder
