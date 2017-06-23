@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# Copyright 2016 Google Inc.
+# Copyright 2017 Google Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-r"""Filter and revise a collection TensorFlow Example protos.
+r"""Filter and revise a collection of TensorFlow Example protos.
 
 This pipeline is useful when a full dataset has been preprocessed but for
 a subsequent experiment you wish to use only a subset of the examples and/or
@@ -24,9 +24,9 @@ USAGE:
   python -m trainer.revise_preprocessed_data \
     --setup_file ./setup.py \
     --project ${PROJECT_ID} \
-    --input gs://${BUCKET_NAME}/sgdp \
+    --input ${BUCKET}/sgdp \
     --metadata preprocess/sgdp_metadata_remap_labels.jinja \
-    --output gs://${BUCKET_NAME}/sgdp_relabeled_subset
+    --output ${BUCKET}/sgdp_relabeled_subset
 """
 
 import datetime
@@ -35,11 +35,11 @@ import os
 
 import apache_beam as beam
 from apache_beam.io import tfrecordio
-from apache_beam.io.fileio import CompressionTypes
-from apache_beam.utils.pipeline_options import GoogleCloudOptions
-from apache_beam.utils.pipeline_options import PipelineOptions
-from apache_beam.utils.pipeline_options import SetupOptions
-from apache_beam.utils.pipeline_options import WorkerOptions
+from apache_beam.io.filesystem import CompressionTypes
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import WorkerOptions
 from jinja2 import Template
 import tensorflow as tf
 
