@@ -80,10 +80,12 @@ def sample_has_variant(variant):
     variant: a variant call
 
   Returns:
-    Whether or not the sample has this particular variant allele.
+    A count of the alleles for this alternate. This count can also be
+      interpreted as a boolean to indicate whether or not the sample
+      has this particular variant allele.
   """
   alt_num = int(variant[encoder.ALT_NUM_COLUMN])
-  return (variant[encoder.FIRST_ALLELE_COLUMN] == alt_num or
+  return ((variant[encoder.FIRST_ALLELE_COLUMN] == alt_num) +
           (encoder.SECOND_ALLELE_COLUMN in variant and
            variant[encoder.SECOND_ALLELE_COLUMN] == alt_num))
 

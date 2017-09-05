@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# Copyright 2016 Google Inc.
+# Copyright 2016 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 from setuptools import find_packages
 from setuptools import setup
 
-REQUIRED_PACKAGES = ['Jinja2==2.8', 'pyfarmhash==0.2.2', 'tensorflow==1.1.0']
+REQUIRED_PACKAGES = ['Jinja2==2.8', 'pyfarmhash==0.2.2']
 
 setup(
     name='trainer',
