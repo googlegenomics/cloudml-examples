@@ -86,6 +86,7 @@ gcloud ml-engine jobs submit training ${JOB_NAME} \
   --package-path ./trainer \
   --module-name trainer.variants_inference \
   --job-dir ${BUCKET}/models/${JOB_NAME} \
+  --runtime-version 1.2 \
   -- \
   --input_dir ${BUCKET}/1000-genomes/${EXAMPLES_SUBDIR}/ \
   --sparse_features all_not_x_y \
