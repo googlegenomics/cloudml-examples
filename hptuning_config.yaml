@@ -1,0 +1,18 @@
+trainingInput:
+  scaleTier: CUSTOM
+  masterType: large_model
+  workerType: large_model
+  parameterServerType: large_model
+  workerCount: 5
+  parameterServerCount: 1
+  hyperparameters:
+    goal: MAXIMIZE
+    hyperparameterMetricTag: precision_at_1
+    maxTrials: 10
+    maxParallelTrials: 4
+    params:
+      - parameterName: learning_rate
+        type: DOUBLE
+        minValue: 0.0001
+        maxValue: 0.01
+        scaleType: UNIT_REVERSE_LOG_SCALE

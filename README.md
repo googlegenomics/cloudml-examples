@@ -94,7 +94,6 @@ gcloud ml-engine jobs submit training ${JOB_NAME} \
   --eval_labels="AFR,AMR,EAS,EUR,SAS" \
   --target_field super_population \
   --hidden_units 20 \
-  --output_path ${BUCKET}/models/${JOB_NAME}/ \
   --num_buckets 50000 \
   --num_train_steps 10000
 ```
@@ -118,6 +117,31 @@ For example, if the job was cancelled after completing step 5,632, the following
 gcloud ml-engine jobs submit training ${JOB_NAME}_save_model \
   ... <all other flags same as above>
   --num_train_steps 5700
+```
+
+## Hyperparameter tuning
+
+Cloud ML Engine provides out of the box support for [Hyperparameter
+tuning](https://cloud.google.com/ml-engine/docs/concepts/hyperparameter-tuning-overview). Running Hyperparameter tuning job is exactly same as a training job except you need to provide options in [TrainingInput](https://cloud.google.com/ml-engine/reference/rest/v1/projects.jobs#traininginput).
+
+```bash
+EXAMPLES_SUBDIR=<the date-time subdirectory created during the validation data preprocess step>
+gcloud ml-engine jobs submit training ${JOB_NAME} \
+  --project ${PROJECT_ID} \
+  --region us-central1 \
+  --package-path ./trainer \
+  --module-name trainer.variants_inference \
+  --job-dir ${BUCKET}/hptuning/${JOB_NAME} \
+  --config hptuning_config.yaml \
+  -- \
+  --input_dir ${BUCKET}/1000-genomes/${EXAMPLES_SUBDIR}/examples* \
+  --sparse_features all_not_x_y \
+  --num_classes 5 \
+  --eval_labels="AFR,AMR,EAS,EUR,SAS" \
+  --target_field super_population \
+  --hidden_units 20 \
+  --num_buckets 50000 \
+  --num_train_steps 10000
 ```
 
 ## Batch predict

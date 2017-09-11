@@ -62,7 +62,7 @@ flags.DEFINE_string(
     "to work correctly. In other words you only need to use this if you want a "
     " different train/eval split than the one provided by default.")
 flags.DEFINE_string(
-    "output_path", "",
+    "job-dir", "",
     "Base output directory. Used by the local and cloud jobs.")
 flags.DEFINE_boolean(
     "use_integerized_features", True,
@@ -398,7 +398,7 @@ def main(unused_argv):
           train_file_pattern,
           eval_file_pattern,
           FLAGS.batch_size),
-      output_dir=FLAGS.output_path)
+      output_dir=FLAGS.job_dir)
 
 if __name__ == "__main__":
   tf.logging.set_verbosity(tf.logging.INFO)
