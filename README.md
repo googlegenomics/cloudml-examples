@@ -16,6 +16,10 @@ of the [free trial credit](https://cloud.google.com/free/)) and also in terms of
 the variety of tools used. We suggest working through the introductory materials
 for each tool before working with the code in this repository.
 
+## Blog Post
+
+[Genomic ancestry inference with deep learning](https://cloud.google.com/blog/big-data/2017/09/genomic-ancestry-inference-with-deep-learning) blog post provides a great overview of the end-to-end reference implementation. It also links to pre-processed data and trained model in Google Cloud Storge if you would like to skip some of the steps below.
+
 ## Getting Started
 
 1. [Set up the Dataflow SDK for Python](https://cloud.google.com/dataflow/docs/quickstarts/quickstart-python)
